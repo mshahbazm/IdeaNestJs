@@ -1,0 +1,12 @@
+src/**
+
+
+# Tests
+tests/**
+
+
+.vscode/*
+.env
+.env-local
+.env-dev
+.env-prod
