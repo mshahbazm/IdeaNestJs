@@ -85,9 +85,6 @@ export class IdeasService {
 		if (files && files.image_amazon) {
 			body.image_amazon = files.image_amazon[0].filename
 		}
-		console.log(files.image_aliexpress[0].filename)
-		console.log(files.image_amazon[0].filename)
-
 		return this.create(body)
 	}
 
