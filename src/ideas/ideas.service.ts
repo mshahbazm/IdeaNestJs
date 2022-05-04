@@ -7,7 +7,6 @@ import { MongoService } from 'src/common/services/mongo/mongo.service'
 import { TagsService } from 'src/tags/tags.service'
 
 import { Idea, IdeaDocument } from './entities/idea.entity'
-import { ideaFiles } from './ideas.controller'
 
 export interface iBlob {
 	fieldname: string
@@ -52,38 +51,22 @@ export class IdeasService {
 		private tagsService: TagsService
 	) {}
 
-	private async resultsCountInOtherQueries(query: any) {
-		const queries = {}
-		for (const cat of this.categories) {
-			if (query) {
-				query.category = cat
-				queries[cat] = await this.ideaModel.countDocuments(query)
-			} else {
-				queries[cat] = 0
-			}
-		}
-		return queries
-	}
-
 	private async create(body: Idea) {
 		if (body.title) body.title = body.title.toLowerCase()
 		const idea = new this.ideaModel({ ...body })
 		return idea.save()
 	}
 
-	async newIdea(body: Idea, files: ideaFiles) {
+	async newIdea(body: Idea, picture: any) {
 		if (body.tags) {
-			const lowerTags = body.tags.toString().toLowerCase();
+			const lowerTags = body.tags.toString().toLowerCase()
 			body.tags = await this.tagsService.getTagsIds(lowerTags)
 		} else {
 			throw new HttpException('Tags are required', HttpStatus.BAD_REQUEST)
 		}
 
-		if (files && files.image_aliexpress) {
-			body.image_aliexpress = files.image_aliexpress[0].filename
-		}
-		if (files && files.image_amazon) {
-			body.image_amazon = files.image_amazon[0].filename
+		if (picture && picture.length > 0) {
+			body.picture = picture
 		}
 		return this.create(body)
 	}
@@ -91,7 +74,7 @@ export class IdeasService {
 	async update(
 		id: Types.ObjectId,
 		updates: Idea,
-		files: ideaFiles,
+		picture: any,
 		userId: Types.ObjectId
 	) {
 		const idea = await this.ideaModel.findById(id)
@@ -105,11 +88,9 @@ export class IdeasService {
 			throw new HttpException('Tags are required', HttpStatus.BAD_REQUEST)
 		}
 
-		if (files && files.image_aliexpress) {
-			updates.image_aliexpress = files.image_aliexpress[0].filename
-		}
-		if (files && files.image_amazon) {
-			updates.image_aliexpress = files.image_amazon[0].filename
+		console.log('here', picture)
+		if (picture && picture.length > 0) {
+			updates.picture = picture
 		}
 
 		return this.ideaModel
@@ -166,11 +147,9 @@ export class IdeasService {
 		delete queryObject.tagIds
 
 		let results = {},
-			currentTotal = 0,
-			categoricalCount = {}
+			currentTotal = 0
 		if (queryObject.tags && !resultedTags && !queryObject.search) {
 			results = {}
-			categoricalCount = await this.resultsCountInOtherQueries(null)
 		} else {
 			results = await this.ideaModel
 				.find(query)
@@ -180,10 +159,7 @@ export class IdeasService {
 				.skip(skip)
 				.limit(pageSize)
 				.exec()
-			categoricalCount = await this.resultsCountInOtherQueries({
-				...query,
-			})
-			currentTotal = categoricalCount[query['category']]
+			currentTotal = await this.ideaModel.find(query).countDocuments()
 		}
 
 		queryObject.page_size = pageSize
@@ -191,7 +167,6 @@ export class IdeasService {
 
 		return {
 			count: +currentTotal,
-			categoricalCount,
 			query: queryObject,
 			tags: resultedTags,
 			ideas: results,

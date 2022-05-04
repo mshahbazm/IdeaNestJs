@@ -13,14 +13,11 @@ import {
 	ForbiddenException,
 	HttpException,
 	HttpStatus,
-	UploadedFiles,
+	UploadedFile,
 } from '@nestjs/common'
 import { Express } from 'express'
 import { IdeasService } from './ideas.service'
-import {
-	FileFieldsInterceptor,
-	FilesInterceptor,
-} from '@nestjs/platform-express'
+import { FileInterceptor } from '@nestjs/platform-express'
 import { MyRequest, JwtAuthGuard } from 'src/auth/guards/jwt-auth.guard'
 import { Idea } from './entities/idea.entity'
 import { Types } from 'mongoose'
@@ -28,13 +25,7 @@ import { PermissionsGuard } from 'src/auth/guards/permissions.guard'
 import { Permissions } from 'src/auth/decorators/permissions.decorator'
 import { OptionalAuthGuard } from 'src/auth/guards/optional-auth.guard'
 import { permissions } from 'src/users/entities/user.entity'
-import { diskStorage } from 'multer'
-import { editFileName } from '../common/helpers/filename'
-
-export interface ideaFiles {
-	image_amazon?: Express.Multer.File[]
-	image_aliexpress?: Express.Multer.File[]
-}
+import { SharpPipe } from '../common/pipes/sharp.pipe'
 
 @Controller('ideas')
 export class IdeasController {
@@ -46,9 +37,9 @@ export class IdeasController {
 		@Query() query: Record<string, unknown>,
 		@Request() req: MyRequest
 	) {
-		const ideas = await this.ideasService.findAll(query)
+		const ideasQueryData = await this.ideasService.findAll(query)
 		return {
-			...ideas,
+			...ideasQueryData,
 			viewer: req.user ? req.user : null,
 		}
 	}
@@ -56,28 +47,14 @@ export class IdeasController {
 	@Post()
 	@UseGuards(JwtAuthGuard, PermissionsGuard)
 	@Permissions(permissions.ADD_IDEAS)
-	@UseInterceptors(
-		FileFieldsInterceptor(
-			[
-				{ name: 'image_amazon', maxCount: 1 },
-				{ name: 'image_aliexpress', maxCount: 1 },
-			],
-			{
-				storage: diskStorage({
-					destination: './files',
-					filename: editFileName,
-				}),
-			}
-		)
-	)
+	@UseInterceptors(FileInterceptor('picture'))
 	create(
 		@Request() req: MyRequest,
 		@Body() body: Idea,
-		@UploadedFiles()
-		files: ideaFiles
+		@UploadedFile(SharpPipe) picture: Express.Multer.File
 	) {
 		const ideaBody = { ...body, creator: req.user?._id }
-		return this.ideasService.newIdea(ideaBody, files)
+		return this.ideasService.newIdea(ideaBody, picture)
 	}
 
 	@Get(':id')
@@ -95,28 +72,14 @@ export class IdeasController {
 	@Patch(':id')
 	@UseGuards(JwtAuthGuard, PermissionsGuard)
 	@Permissions(permissions.ADD_IDEAS)
-	@UseInterceptors(
-		FileFieldsInterceptor(
-			[
-				{ name: 'image_amazon', maxCount: 1 },
-				{ name: 'image_aliexpress', maxCount: 1 },
-			],
-			{
-				storage: diskStorage({
-					destination: './files',
-					filename: editFileName,
-				}),
-			}
-		)
-	)
+	@UseInterceptors(FileInterceptor('picture'))
 	update(
 		@Param('id') id: Types.ObjectId,
 		@Body() updates: Idea,
 		@Request() req: MyRequest,
-		@UploadedFiles()
-		files: ideaFiles
+		@UploadedFile(SharpPipe) picture: Express.Multer.File
 	) {
-		return this.ideasService.update(id, updates, files, req.user._id)
+		return this.ideasService.update(id, updates, picture, req.user._id)
 	}
 
 	@Delete(':id')

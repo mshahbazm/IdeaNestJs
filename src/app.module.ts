@@ -5,6 +5,9 @@ import { MongooseModule } from '@nestjs/mongoose'
 import { ConfigModule, ConfigService } from '@nestjs/config'
 import { GlobalJwtModule } from './common/modules/globalJwt.module'
 import { IdeasModule } from './ideas/ideas.module'
+import { ServeStaticModule } from '@nestjs/serve-static'
+import { join } from 'path'
+
 
 @Module({
 	imports: [
@@ -17,6 +20,9 @@ import { IdeasModule } from './ideas/ideas.module'
 				uri: config.get('MONGO_URI'),
 			}),
 			inject: [ConfigService],
+		}),
+		ServeStaticModule.forRoot({
+			rootPath: join(__dirname, '..', 'files'),
 		}),
 		AuthModule,
 		IdeasModule,
